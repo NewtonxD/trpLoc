@@ -1,4 +1,4 @@
-package abreusapp.trpLoc
+package abreuapps.trpLoc
 
 import android.app.Application
 import android.app.NotificationChannel

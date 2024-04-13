@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Jpc Practica"
+rootProject.name = "AbreuApps"
 include(":app")
  

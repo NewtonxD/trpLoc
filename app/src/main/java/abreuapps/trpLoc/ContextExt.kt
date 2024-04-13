@@ -1,4 +1,4 @@
-package abreusapp.trpLoc
+package abreuapps.trpLoc
 
 import android.Manifest
 import android.content.Context

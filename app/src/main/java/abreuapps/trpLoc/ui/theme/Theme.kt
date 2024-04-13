@@ -1,4 +1,4 @@
-package abreusapp.trpLoc.ui.theme
+package abreuapps.trpLoc.ui.theme
 
 import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme

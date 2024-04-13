@@ -1,4 +1,4 @@
-package abreusapp.trpLoc
+package abreuapps.trpLoc
 
 import org.junit.Test
 

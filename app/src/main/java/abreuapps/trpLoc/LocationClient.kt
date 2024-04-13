@@ -1,4 +1,4 @@
-package abreusapp.trpLoc
+package abreuapps.trpLoc
 
 import android.location.Location
 import kotlinx.coroutines.flow.Flow

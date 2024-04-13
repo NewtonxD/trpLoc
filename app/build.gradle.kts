@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "abreusapp.trpLoc"
+    namespace = "abreuapps.trpLoc"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "abreusapp.trpLoc"
+        applicationId = "abreuapps.trpLoc"
         minSdk = 31
         //noinspection ExpiredTargetSdkVersion
         targetSdk = 31
