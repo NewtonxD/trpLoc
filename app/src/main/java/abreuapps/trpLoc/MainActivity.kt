@@ -1,10 +1,13 @@
 package abreuapps.trpLoc
 
+import abreuapps.trpLoc.api.TrpAPIService
+import abreuapps.trpLoc.api.model.ResultVerifyData
 import abreuapps.trpLoc.ui.theme.trpLocTheme
 import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
@@ -26,6 +29,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 
 
 class MainActivity : ComponentActivity() {
@@ -34,7 +42,8 @@ class MainActivity : ComponentActivity() {
 
         val access:Array<String> = arrayOf(
             Manifest.permission.ACCESS_COARSE_LOCATION,
-            Manifest.permission.ACCESS_FINE_LOCATION
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.INTERNET
         )
 
         ActivityCompat.requestPermissions(
@@ -45,15 +54,49 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             trpLocTheme{
-                MainUI(applicationContext,this)
+                MainUI(
+                    applicationContext,
+                    this
+                )
             }
 
         }
     }
 }
 
+fun validateVehicle(
+    placa:String,
+    res:MutableState<ResultVerifyData>
+){
+    val retrofit=Retrofit.Builder()
+        .baseUrl("http://192.168.100.76:8090/API/trp")
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+
+    val trpApi=retrofit.create(TrpAPIService::class.java)
+
+    val call: Call<ResultVerifyData> = trpApi.validateInfo(placa)
+
+    call.enqueue(object: Callback<ResultVerifyData>{
+        override fun onResponse(p0: Call<ResultVerifyData>, p1: Response<ResultVerifyData>) {
+            if (p1.isSuccessful){
+                res.value=p1.body()!!
+            }
+        }
+
+        override fun onFailure(p0: Call<ResultVerifyData>, p1: Throwable) {
+            res.value.message="Error: No pudimos verificar Transporte..."
+            res.value.isValid=false
+        }
+    })
+
+}
+
 @Composable
-fun MainUI(applicationContext: Context,activity: MainActivity){
+fun MainUI(
+    applicationContext: Context,
+    activity: MainActivity
+    ){
 
     val label:MutableState<String> = remember {
         mutableStateOf("Iniciar Localizador")
@@ -112,6 +155,9 @@ fun MainUI(applicationContext: Context,activity: MainActivity){
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
                 ){
+                    val validTransport=remember{
+                        mutableStateOf(ResultVerifyData(false,""))
+                    }
                     Text(
                         text = label.value,
                         modifier = Modifier
@@ -121,20 +167,29 @@ fun MainUI(applicationContext: Context,activity: MainActivity){
                     Switch(
                         checked = checkedVal.value,
                         onCheckedChange = {
-                            checkedVal.value = it
                             if (it) {
-                                label.value = "Detener Localizador"
-                                Intent(applicationContext, LocationService::class.java).apply {
-                                    action = LocationService.ACTION_START
-                                    activity.startService(this)
+                                validateVehicle(placaVal.value,validTransport)
+                                val validation = validTransport.value.isValid
+                                Toast.makeText( applicationContext, validTransport.value.message, Toast.LENGTH_LONG).show()
+
+                                if(validation){
+                                    label.value = "Detener Localizador"
+                                    checkedVal.value = true
+                                    Intent(applicationContext, LocationService::class.java).apply {
+                                        action = LocationService.ACTION_START
+                                        activity.startService(this)
+                                    }
                                 }
+
                             } else {
                                 label.value = "Iniciar Localizador"
+                                checkedVal.value = false
                                 Intent(applicationContext, LocationService::class.java).apply {
                                     action = LocationService.ACTION_STOP
                                     activity.stopService(this)
                                 }
                             }
+
                         },
                         modifier = Modifier
                             .align(Alignment.CenterVertically)
