@@ -1,17 +1,17 @@
 package abreuapps.trpLoc.api
 
+import abreuapps.trpLoc.api.model.RequestVerifyData
 import abreuapps.trpLoc.api.model.ResultVerifyData
 import retrofit2.Call
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.Body
+import retrofit2.http.Headers
 import retrofit2.http.POST
-import retrofit2.http.Query
 
 interface TrpAPIService {
-
-    @POST("/verifyTrpData")
+    @Headers("Content-Type: application/json")
+    @POST("API/trp/verifyTrpData")
     fun validateInfo(
-       @Query("placa") placa : String
-    ) : Call<ResultVerifyData>
+       @Body placa : RequestVerifyData?
+    ) : Call<ResultVerifyData?>?
 
 }

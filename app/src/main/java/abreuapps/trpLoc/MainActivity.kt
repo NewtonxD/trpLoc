@@ -1,6 +1,7 @@
 package abreuapps.trpLoc
 
 import abreuapps.trpLoc.api.TrpAPIService
+import abreuapps.trpLoc.api.model.RequestVerifyData
 import abreuapps.trpLoc.api.model.ResultVerifyData
 import abreuapps.trpLoc.ui.theme.trpLocTheme
 import android.Manifest
@@ -64,34 +65,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-fun validateVehicle(
-    placa:String,
-    res:MutableState<ResultVerifyData>
-){
-    val retrofit=Retrofit.Builder()
-        .baseUrl("http://192.168.100.76:8090/API/trp")
-        .addConverterFactory(GsonConverterFactory.create())
-        .build()
-
-    val trpApi=retrofit.create(TrpAPIService::class.java)
-
-    val call: Call<ResultVerifyData> = trpApi.validateInfo(placa)
-
-    call.enqueue(object: Callback<ResultVerifyData>{
-        override fun onResponse(p0: Call<ResultVerifyData>, p1: Response<ResultVerifyData>) {
-            if (p1.isSuccessful){
-                res.value=p1.body()!!
-            }
-        }
-
-        override fun onFailure(p0: Call<ResultVerifyData>, p1: Throwable) {
-            res.value.message="Error: No pudimos verificar Transporte..."
-            res.value.isValid=false
-        }
-    })
-
-}
-
 @Composable
 fun MainUI(
     applicationContext: Context,
@@ -107,6 +80,10 @@ fun MainUI(
 
     val placaVal:MutableState<String> = remember {
         mutableStateOf("")
+    }
+
+    val validTransport=remember{
+        mutableStateOf(ResultVerifyData(false,""))
     }
 
     Box(
@@ -155,9 +132,6 @@ fun MainUI(
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
                 ){
-                    val validTransport=remember{
-                        mutableStateOf(ResultVerifyData(false,""))
-                    }
                     Text(
                         text = label.value,
                         modifier = Modifier
@@ -199,5 +173,36 @@ fun MainUI(
             }
         }
     }
+
+}
+
+private fun validateVehicle(
+    placa:String,
+    res:MutableState<ResultVerifyData>
+):Unit {
+
+    val api =
+        Retrofit.Builder()
+            .baseUrl("http://192.168.100.76:8090")
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+
+    val retroAPI=api
+        .create(TrpAPIService::class.java)
+
+    val data = RequestVerifyData(placa)
+
+    val call: Call<ResultVerifyData?>? = retroAPI.validateInfo(data)
+
+    call!!.enqueue(object: Callback<ResultVerifyData?>{
+        override fun onResponse(p0: Call<ResultVerifyData?>, p1: Response<ResultVerifyData?>) {
+            res.value=p1.body()!!
+        }
+
+        override fun onFailure(p0: Call<ResultVerifyData?>, p1: Throwable) {
+            res.value.message="Error: No pudimos verificar Transporte..."
+            res.value.isValid=false
+        }
+    })
 
 }
