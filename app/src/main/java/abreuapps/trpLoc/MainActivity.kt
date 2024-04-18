@@ -1,14 +1,8 @@
 package abreuapps.trpLoc
 
 import abreuapps.trpLoc.api.TrpAPIService
-import abreuapps.trpLoc.api.model.CheckedVal
-import abreuapps.trpLoc.api.model.ErrorMessage
-import abreuapps.trpLoc.api.model.InProcessVal
-import abreuapps.trpLoc.api.model.LabelVal
-import abreuapps.trpLoc.api.model.PlacaVal
 import abreuapps.trpLoc.api.model.RequestVerifyData
 import abreuapps.trpLoc.api.model.ResultVerifyData
-import abreuapps.trpLoc.api.model.ValidTransportVal
 import abreuapps.trpLoc.ui.theme.trpLocTheme
 import android.Manifest
 import android.content.Context
@@ -20,7 +14,6 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,24 +21,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.HttpException
@@ -92,54 +84,46 @@ fun MainUI(
     activity: MainActivity
     ){
 
+    var errorMessage by remember{ mutableStateOf("") }.apply { value=this.value }
+
+    var placaVal by remember{ mutableStateOf("") }.apply { value=this.value }
+
+    val focusRequester = remember { FocusRequester() }
+
+    val focusManager = LocalFocusManager.current
+
+    val validTransport by remember{ mutableStateOf( ResultVerifyData(false,"") ) }.apply { value=this.value }
+
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Column{
 
-
-            val label = remember{ LabelVal() }
-
-            val errorMessage = remember { ErrorMessage() }
-
-            val checkedVal = remember{ CheckedVal() }
-
-            val inProcess = remember{ InProcessVal() }
-
-            val placaVal = remember { PlacaVal() }
-
-            val focusRequester = remember { FocusRequester() }
-
-            val focusManager = LocalFocusManager.current
-
-            val validTransport = remember{ ValidTransportVal() }
+        Column {
 
             //Text field column
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(75.dp)
-            ){
+            ) {
 
-                Row (
+                Row(
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
-                ){
-                    Spacer(modifier = Modifier.padding(start = 16.dp, end = 16.dp))
+                ) {
                     OutlinedTextField(
-                        value = placaVal.text,
+                        value = placaVal,
                         label = { Text("Placa") },
                         singleLine = true,
                         onValueChange = {
-                            placaVal.setVal(it)
-                            if(errorMessage.text!=null) errorMessage.setVal(null)
+                            placaVal=it
+                            if (errorMessage != "") errorMessage=""
                         },
-                        enabled = ! checkedVal.value,
-                        isError = errorMessage.text != null,
+                        isError = errorMessage != "",
                         trailingIcon = {
-                            if(errorMessage.text != null){
-                                Icon(Icons.Filled.Warning, errorMessage.text)
+                            if (errorMessage != "") {
+                                Icon(Icons.Filled.Warning, errorMessage)
                             }
                         },
 
@@ -148,96 +132,119 @@ fun MainUI(
                             .focusRequester(focusRequester)
                     )
                 }
+            }
 
-                Column (
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp)
+            ) {
+                //start
+                Row(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(75.dp)
-                ){
-                    Row (
-                        modifier = Modifier
-                            .align(Alignment.CenterHorizontally)
-                    ){
-                        Button(
-                            onClick = {
-                                focusManager.clearFocus()
-                                inProcess.setVal(false)
+                        .align(Alignment.CenterHorizontally)
+                ) {
+                    Button(
+                        onClick = {
+                            focusManager.clearFocus()
 
-                                if (! checkedVal.value) {
+                            if (placaVal.trim().isEmpty()) {
 
-                                    if ( placaVal.text.trim().isEmpty() ) {
+                                validTransport.message = "Placa requerida para proceder."
+                                errorMessage = validTransport.message
+                                Toast.makeText(
+                                    applicationContext,
+                                    validTransport.message,
+                                    Toast.LENGTH_SHORT
+                                ).show()
 
-                                        validTransport.value.isValid=false
-                                        validTransport.value.message="Placa requerida para proceder."
-                                        errorMessage.setVal(validTransport.value.message)
-                                        Toast.makeText( applicationContext, validTransport.value.message, Toast.LENGTH_SHORT).show()
+                            } else {
 
-                                    } else {
-
-                                        try {
-                                            validateVehicle(placaVal,validTransport.value)
-                                        }catch (e: IOException){
-                                            validTransport.value.message="No pudimos contactar al servidor!"
-                                        }catch(e: HttpException){
-                                            validTransport.value.message="No pudimos contactar al servidor!"
-                                        }
-
-                                        val validation = validTransport.value.isValid
-                                        Toast.makeText( applicationContext, validTransport.value.message, Toast.LENGTH_SHORT).show()
-
-                                        if(validation){
-                                            errorMessage.setVal(null)
-                                            label.setVal("Detener")
-                                            checkedVal.setVal(true)
-                                            Intent(applicationContext, LocationService::class.java).apply {
-                                                action = LocationService.ACTION_START
-                                                activity.startService(this)
-                                            }
-                                        }else{
-                                            errorMessage.setVal(validTransport.value.message)
-                                        }
-
-                                    }
-
-
-
-                                } else {
-
-                                    label.setVal("Iniciar")
-                                    checkedVal.setVal(false)
-                                    Intent(applicationContext, LocationService::class.java).apply {
-                                        action = LocationService.ACTION_STOP
-                                        activity.stopService(this)
-                                    }
-
+                                try {
+                                    validateVehicle(placaVal, validTransport)
+                                } catch (e: IOException) {
+                                    validTransport.message =
+                                        "No pudimos contactar al servidor!"
+                                } catch (e: HttpException) {
+                                    validTransport.message =
+                                        "No pudimos contactar al servidor!"
                                 }
 
-                                inProcess.setVal(true)
-                            },
-                            modifier = Modifier.align(Alignment.CenterVertically),
-                            enabled = inProcess.value
+                                val validation = validTransport.isValid
+
+                                Toast.makeText(
+                                    applicationContext,
+                                    validTransport.message,
+                                    Toast.LENGTH_SHORT
+                                ).show()
+
+                                if (validation) {
+                                    errorMessage = ""
+                                    Intent(
+                                        applicationContext,
+                                        LocationService::class.java
+                                    ).apply {
+                                        putExtra("placa",placaVal)
+                                        action = LocationService.ACTION_START
+                                        activity.startService(this)
+                                    }
+                                } else {
+                                    errorMessage = validTransport.message
+                                }
+                            }
 
 
-                        ){
-                            Text(text = label.text)
-                        }
 
+
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Green),
+                        modifier = Modifier.align(Alignment.CenterVertically)
+
+
+                    ) {
+                        Text(text = "Iniciar")
+                    }
+
+                }
+                //Stop
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                ) {
+                    Button(
+                        onClick = {
+                            focusManager.clearFocus()
+
+                            Intent(
+                                applicationContext,
+                                LocationService::class.java
+                            ).apply {
+                                action = LocationService.ACTION_STOP
+                                activity.stopService(this)
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                        modifier = Modifier.align(Alignment.CenterVertically)
+
+                    ) {
+                        Text(text = "Detener")
                     }
 
                 }
 
-
             }
 
 
-
         }
+
+
     }
+
 
 }
 
 private fun validateVehicle(
-    placa:PlacaVal,
+    placa:String,
     res:ResultVerifyData
 ){
     val api =
@@ -249,7 +256,7 @@ private fun validateVehicle(
     val retroAPI=api
         .create(TrpAPIService::class.java)
 
-    val data = RequestVerifyData(placa.text)
+    val data = RequestVerifyData(placa)
 
     val call: Call<ResultVerifyData?>? = retroAPI.validateInfo(data)
 
@@ -266,9 +273,4 @@ private fun validateVehicle(
             res.isValid=false
         }
     })
-    //delaySeconds(1)
-}
-
-private fun delaySeconds( seconds:Int ) = runBlocking {
-    delay( (seconds*1000).toLong() )
 }

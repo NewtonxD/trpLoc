@@ -1,5 +1,6 @@
 package abreuapps.trpLoc.api
 
+import abreuapps.trpLoc.api.model.RequestLocationData
 import abreuapps.trpLoc.api.model.RequestVerifyData
 import abreuapps.trpLoc.api.model.ResultVerifyData
 import retrofit2.Call
@@ -12,6 +13,12 @@ interface TrpAPIService {
     @POST("API/trp/verifyTrpData")
     fun validateInfo(
        @Body placa : RequestVerifyData?
+    ) : Call<ResultVerifyData?>?
+
+    @Headers("Content-Type: application/json")
+    @POST("API/trp/sendTrpData")
+    fun sendTransportInfo(
+        @Body data : RequestLocationData
     ) : Call<ResultVerifyData?>?
 
 }
