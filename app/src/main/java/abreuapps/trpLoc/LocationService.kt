@@ -32,6 +32,8 @@ class LocationService: Service() {
 
     private var placa:String?=""
 
+    private var token:String?=""
+
     private lateinit var locationClient: LocationClient
 
     override fun onBind(intent: Intent?): IBinder? {
@@ -58,7 +60,7 @@ class LocationService: Service() {
     private fun start(intent: Intent?){
 
         placa = intent?.getStringExtra("placa")
-
+        token = intent?.getStringExtra("token")
         val notification = NotificationCompat.Builder(this,"location")
             .setContentTitle("Localizando "+placa!!)
             .setContentText("Loc: null")
@@ -79,7 +81,8 @@ class LocationService: Service() {
                 sendData(
                     placa,
                     location.latitude.toString(),
-                    location.longitude.toString()
+                    location.longitude.toString(),
+                    token
                 )
                 notificationManager.notify(1,updatedNotification.build())
             }
@@ -92,6 +95,8 @@ class LocationService: Service() {
     private fun stop(intent: Intent?){
 
         placa = intent?.getStringExtra("placa")
+        token = intent?.getStringExtra("token")
+
         stopForeground(STOP_FOREGROUND_DETACH)
         stopSelf()
         Toast.makeText(
@@ -114,10 +119,11 @@ class LocationService: Service() {
     private fun sendData(
         placa:String?,
         lat: String,
-        lon: String
+        lon: String,
+        token:String?
     ){
 
-        if (! placa.isNullOrBlank()){
+        if (! (placa.isNullOrBlank() || token.isNullOrBlank()) ){
             val api =
                 Retrofit.Builder()
                     .baseUrl("http://192.168.100.76:8090")
@@ -127,7 +133,7 @@ class LocationService: Service() {
             val retroAPI=api
                 .create(TrpAPIService::class.java)
 
-            val data = RequestLocationData(placa,lat,lon)
+            val data = RequestLocationData(placa,lat,lon,token)
 
             val call = retroAPI.sendTransportInfo(data)
 
@@ -145,9 +151,10 @@ class LocationService: Service() {
 
     private fun changeStatus(
         placa:String?,
-        estado:String
+        estado:String,
+        token: String?
     ){
-        if (! placa.isNullOrBlank()){
+        if (! (placa.isNullOrBlank() || token.isNullOrBlank())){
             val api =
                 Retrofit.Builder()
                     .baseUrl("http://192.168.100.76:8090")
@@ -157,7 +164,7 @@ class LocationService: Service() {
             val retroAPI=api
                 .create(TrpAPIService::class.java)
 
-            val data = RequestChangeStatusData(placa,estado)
+            val data = RequestChangeStatusData(placa,estado,token)
 
             val call = retroAPI.changeTransportStatus(data)
 

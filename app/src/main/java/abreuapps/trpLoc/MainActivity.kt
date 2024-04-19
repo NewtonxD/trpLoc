@@ -185,6 +185,8 @@ fun MainUI(
                                         LocationService::class.java
                                     ).apply {
                                         putExtra("placa",placaVal)
+                                        putExtra("token",token)
+
                                         action = LocationService.ACTION_START
                                         activity.startService(this)
                                     }
@@ -221,6 +223,10 @@ fun MainUI(
                             ).apply {
                                 if(this.getStringExtra("placa").isNullOrBlank())
                                     putExtra("placa",placaVal)
+
+                                if(this.getStringExtra("token").isNullOrBlank())
+                                    putExtra("token",token)
+
                                 action = LocationService.ACTION_STOP
                                 activity.stopService(this)
                             }
