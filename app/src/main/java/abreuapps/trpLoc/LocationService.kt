@@ -1,6 +1,7 @@
 package abreuapps.trpLoc
 
 import abreuapps.trpLoc.api.TrpAPIService
+import abreuapps.trpLoc.api.model.RequestChangeStatusData
 import abreuapps.trpLoc.api.model.RequestLocationData
 import abreuapps.trpLoc.api.model.RequestVerifyData
 import abreuapps.trpLoc.api.model.ResultVerifyData
@@ -48,7 +49,7 @@ class LocationService: Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action){
             ACTION_START -> start(intent)
-            ACTION_STOP -> stop()
+            ACTION_STOP -> stop(intent)
         }
 
         return super.onStartCommand(intent, flags, startId)
@@ -88,7 +89,9 @@ class LocationService: Service() {
 
     }
 
-    private fun stop(){
+    private fun stop(intent: Intent?){
+
+        placa = intent?.getStringExtra("placa")
         stopForeground(STOP_FOREGROUND_DETACH)
         stopSelf()
         Toast.makeText(
@@ -131,6 +134,36 @@ class LocationService: Service() {
             call!!.enqueue(object: Callback<ResultVerifyData?> {
                 override fun onResponse(p0: Call<ResultVerifyData?>, p1: Response<ResultVerifyData?>) {
                     
+                }
+
+                override fun onFailure(p0: Call<ResultVerifyData?>, p1: Throwable) {
+
+                }
+            })
+        }
+    }
+
+    private fun changeStatus(
+        placa:String?,
+        estado:String
+    ){
+        if (! placa.isNullOrBlank()){
+            val api =
+                Retrofit.Builder()
+                    .baseUrl("http://192.168.100.76:8090")
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .build()
+
+            val retroAPI=api
+                .create(TrpAPIService::class.java)
+
+            val data = RequestChangeStatusData(placa,estado)
+
+            val call = retroAPI.changeTransportStatus(data)
+
+            call!!.enqueue(object: Callback<ResultVerifyData?> {
+                override fun onResponse(p0: Call<ResultVerifyData?>, p1: Response<ResultVerifyData?>) {
+
                 }
 
                 override fun onFailure(p0: Call<ResultVerifyData?>, p1: Throwable) {

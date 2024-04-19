@@ -197,7 +197,7 @@ fun MainUI(
 
 
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Green),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Blue),
                         modifier = Modifier.align(Alignment.CenterVertically)
 
 
@@ -219,6 +219,8 @@ fun MainUI(
                                 applicationContext,
                                 LocationService::class.java
                             ).apply {
+                                if(this.getStringExtra("placa").isNullOrBlank())
+                                    putExtra("placa",placaVal)
                                 action = LocationService.ACTION_STOP
                                 activity.stopService(this)
                             }
