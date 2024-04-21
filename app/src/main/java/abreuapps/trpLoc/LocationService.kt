@@ -51,7 +51,7 @@ class LocationService: Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action){
             ACTION_START -> start(intent)
-            ACTION_STOP -> stop(intent)
+            ACTION_STOP -> stop()
         }
 
         return super.onStartCommand(intent, flags, startId)
@@ -92,18 +92,9 @@ class LocationService: Service() {
 
     }
 
-    private fun stop(intent: Intent?){
-
-        placa = intent?.getStringExtra("placa")
-        token = intent?.getStringExtra("token")
-
+    private fun stop(){
         stopForeground(STOP_FOREGROUND_DETACH)
         stopSelf()
-        Toast.makeText(
-            this,
-            "Servicio detenido!",
-            Toast.LENGTH_SHORT
-        ).show()
     }
 
     override fun onDestroy() {
@@ -123,61 +114,26 @@ class LocationService: Service() {
         token:String?
     ){
 
-        if (! (placa.isNullOrBlank() || token.isNullOrBlank()) ){
-            val api =
-                Retrofit.Builder()
-                    .baseUrl("http://192.168.100.76:8090")
-                    .addConverterFactory(GsonConverterFactory.create())
-                    .build()
+        val api =
+            Retrofit.Builder()
+                .baseUrl("http://192.168.100.76:8090")
+                .addConverterFactory(GsonConverterFactory.create())
+                .build()
 
-            val retroAPI=api
-                .create(TrpAPIService::class.java)
+        val retroAPI=api
+            .create(TrpAPIService::class.java)
 
-            val data = RequestLocationData(placa,lat,lon,token)
+        val data = RequestLocationData(placa!!,lat,lon,token!!)
 
-            val call = retroAPI.sendTransportInfo(data)
+        val call = retroAPI.sendTransportInfo(data)
 
-            call!!.enqueue(object: Callback<ResultVerifyData?> {
-                override fun onResponse(p0: Call<ResultVerifyData?>, p1: Response<ResultVerifyData?>) {
-                    
-                }
+        call!!.enqueue(object: Callback<ResultVerifyData?>{
+            override fun onResponse(p0: Call<ResultVerifyData?>, p1: Response<ResultVerifyData?>) {
+            }
 
-                override fun onFailure(p0: Call<ResultVerifyData?>, p1: Throwable) {
-
-                }
-            })
-        }
-    }
-
-    private fun changeStatus(
-        placa:String?,
-        estado:String,
-        token: String?
-    ){
-        if (! (placa.isNullOrBlank() || token.isNullOrBlank())){
-            val api =
-                Retrofit.Builder()
-                    .baseUrl("http://192.168.100.76:8090")
-                    .addConverterFactory(GsonConverterFactory.create())
-                    .build()
-
-            val retroAPI=api
-                .create(TrpAPIService::class.java)
-
-            val data = RequestChangeStatusData(placa,estado,token)
-
-            val call = retroAPI.changeTransportStatus(data)
-
-            call!!.enqueue(object: Callback<ResultVerifyData?> {
-                override fun onResponse(p0: Call<ResultVerifyData?>, p1: Response<ResultVerifyData?>) {
-
-                }
-
-                override fun onFailure(p0: Call<ResultVerifyData?>, p1: Throwable) {
-
-                }
-            })
-        }
+            override fun onFailure(p0: Call<ResultVerifyData?>, p1: Throwable) {
+            }
+        })
     }
 
 

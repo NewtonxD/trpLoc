@@ -1,6 +1,7 @@
 package abreuapps.trpLoc
 
 import abreuapps.trpLoc.api.TrpAPIService
+import abreuapps.trpLoc.api.model.RequestChangeStatusData
 import abreuapps.trpLoc.api.model.RequestVerifyData
 import abreuapps.trpLoc.api.model.ResultVerifyData
 import abreuapps.trpLoc.ui.theme.trpLocTheme
@@ -17,7 +18,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
@@ -26,9 +26,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,11 +39,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import retrofit2.Call
 import retrofit2.Callback
-import retrofit2.HttpException
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import java.io.IOException
 
 
 class MainActivity : ComponentActivity() {
@@ -62,8 +59,6 @@ class MainActivity : ComponentActivity() {
             access,
             0
         )
-
-
 
         setContent {
             trpLocTheme{
@@ -84,15 +79,13 @@ fun MainUI(
     activity: MainActivity
     ){
 
-    var errorMessage by remember{ mutableStateOf("") }.apply { value=this.value }
+    val errorMessage = remember{ mutableStateOf("") }
 
-    var placaVal by remember{ mutableStateOf("") }.apply { value=this.value }
+    val placaVal = remember{ mutableStateOf("") }
 
     val focusRequester = remember { FocusRequester() }
 
     val focusManager = LocalFocusManager.current
-
-    val validTransport by remember{ mutableStateOf( ResultVerifyData(false,"") ) }.apply { value=this.value }
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -113,17 +106,17 @@ fun MainUI(
                         .align(Alignment.CenterHorizontally)
                 ) {
                     OutlinedTextField(
-                        value = placaVal,
+                        value = placaVal.value,
                         label = { Text("Placa") },
                         singleLine = true,
                         onValueChange = {
-                            placaVal=it
-                            if (errorMessage != "") errorMessage=""
+                            placaVal.value=it
+                            if (errorMessage.value != "") errorMessage.value=""
                         },
-                        isError = errorMessage != "",
+                        isError = errorMessage.value != "",
                         trailingIcon = {
-                            if (errorMessage != "") {
-                                Icon(Icons.Filled.Warning, errorMessage)
+                            if (errorMessage.value!= "") {
+                                Icon(Icons.Filled.Warning, errorMessage.value)
                             }
                         },
 
@@ -148,60 +141,28 @@ fun MainUI(
                         onClick = {
                             focusManager.clearFocus()
 
-                            if (placaVal.trim().isEmpty()) {
-
-                                validTransport.message = "Placa requerida para proceder."
-                                errorMessage = validTransport.message
+                            if (placaVal.value.trim().isEmpty()) {
+                                errorMessage.value = "Placa requerida para proceder."
                                 Toast.makeText(
                                     applicationContext,
-                                    validTransport.message,
+                                    "Placa requerida para proceder.",
                                     Toast.LENGTH_SHORT
                                 ).show()
 
                             } else {
-
-                                try {
-                                    validateVehicle(placaVal, validTransport)
-                                } catch (e: IOException) {
-                                    validTransport.message =
-                                        "No pudimos contactar al servidor!"
-                                } catch (e: HttpException) {
-                                    validTransport.message =
-                                        "No pudimos contactar al servidor!"
-                                }
-
-                                val validation = validTransport.isValid
-
-                                Toast.makeText(
+                                validateVehicle(
                                     applicationContext,
-                                    validTransport.message,
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                    activity,
+                                    placaVal,
+                                    errorMessage
+                                )
 
-                                if (validation) {
-                                    errorMessage = ""
-                                    Intent(
-                                        applicationContext,
-                                        LocationService::class.java
-                                    ).apply {
-                                        putExtra("placa",placaVal)
-                                        putExtra("token",token)
 
-                                        action = LocationService.ACTION_START
-                                        activity.startService(this)
-                                    }
-                                } else {
-                                    errorMessage = validTransport.message
-                                }
                             }
-
-
-
 
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Blue),
                         modifier = Modifier.align(Alignment.CenterVertically)
-
 
                     ) {
                         Text(text = "Iniciar")
@@ -217,19 +178,23 @@ fun MainUI(
                         onClick = {
                             focusManager.clearFocus()
 
-                            Intent(
-                                applicationContext,
-                                LocationService::class.java
-                            ).apply {
-                                if(this.getStringExtra("placa").isNullOrBlank())
-                                    putExtra("placa",placaVal)
+                            if (placaVal.value.trim().isEmpty()) {
+                                errorMessage.value = "Placa requerida para proceder."
+                                Toast.makeText(
+                                    applicationContext,
+                                    "Placa requerida para proceder.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
 
-                                if(this.getStringExtra("token").isNullOrBlank())
-                                    putExtra("token",token)
-
-                                action = LocationService.ACTION_STOP
-                                activity.stopService(this)
+                            } else {
+                                changeStatus(
+                                    applicationContext,
+                                    activity,
+                                    placaVal,
+                                    "Estacionado"
+                                )
                             }
+
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
                         modifier = Modifier.align(Alignment.CenterVertically)
@@ -252,9 +217,15 @@ fun MainUI(
 }
 
 private fun validateVehicle(
-    placa:String,
-    res:ResultVerifyData
+    context: Context,
+    activity: MainActivity,
+    placa:MutableState<String>,
+    errorMessage:MutableState<String>
 ){
+
+
+    val pwd = "*Dd123456"
+
     val api =
         Retrofit.Builder()
             .baseUrl("http://192.168.100.76:8090")
@@ -264,21 +235,116 @@ private fun validateVehicle(
     val retroAPI=api
         .create(TrpAPIService::class.java)
 
-    val data = RequestVerifyData(placa)
+    val data = RequestVerifyData(placa.value,pwd)
 
     val call: Call<ResultVerifyData?>? = retroAPI.validateInfo(data)
 
     call!!.enqueue(object: Callback<ResultVerifyData?>{
         override fun onResponse(p0: Call<ResultVerifyData?>, p1: Response<ResultVerifyData?>) {
             if(p1.isSuccessful && p1.body()!=null){
-                res.message=p1.body()!!.message
-                res.isValid=p1.body()!!.isValid
+
+                val validation = p1.body()!!.isValid
+
+                if(p1.body()!!.message.isNotBlank())
+                    Toast.makeText(
+                        context,
+                        p1.body()!!.message,
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+
+                if (validation) {
+                    errorMessage.value = ""
+                    Intent(
+                        context,
+                        LocationService::class.java
+                    ).apply {
+                        removeExtra("token")
+                        removeExtra("placa")
+                        putExtra("placa", placa.value)
+                        putExtra("token", p1.body()!!.token)
+
+                        action = LocationService.ACTION_START
+                        activity.startService(this)
+                    }
+                } else {
+                    errorMessage.value = p1.body()!!.message
+                }
+
             }
         }
 
         override fun onFailure(p0: Call<ResultVerifyData?>, p1: Throwable) {
-            res.message="No pudimos contactar al servidor!"
-            res.isValid=false
+            Toast.makeText(
+                context,
+                "No pudimos contactar al servidor!",
+                Toast.LENGTH_SHORT
+            ).show()
         }
     })
+}
+
+
+
+private fun changeStatus(
+    context: Context,
+    activity: MainActivity,
+    placa: MutableState<String>,
+    estado:String
+){
+    val pwd = "*Dd123456"
+    val api =
+        Retrofit.Builder()
+            .baseUrl("http://192.168.100.76:8090")
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+
+    val retroAPI=api
+        .create(TrpAPIService::class.java)
+
+    val data = RequestChangeStatusData(placa.value,estado,pwd)
+
+    val call = retroAPI.changeTransportStatus(data)
+
+    call!!.enqueue(object: Callback<ResultVerifyData?>{
+        override fun onResponse(p0: Call<ResultVerifyData?>, p1: Response<ResultVerifyData?>) {
+            if(p1.isSuccessful && p1.body()!=null){
+
+                if(p1.body()!!.isValid){
+                    Intent(
+                        context,
+                        LocationService::class.java
+                    ).apply {
+
+                        action = LocationService.ACTION_STOP
+                        activity.stopService(this)
+
+
+
+                    }
+                }
+
+                var txtAux=""
+                if(p1.body()!!.isValid) txtAux=" Deteniendo Servicio..."
+
+                Toast.makeText(
+                    context,
+                    p1.body()!!.message+txtAux,
+                    Toast.LENGTH_SHORT
+                ).show()
+
+            }
+        }
+
+        override fun onFailure(p0: Call<ResultVerifyData?>, p1: Throwable) {
+            Toast.makeText(
+                context,
+                "No pudimos contactar al servidor!",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    })
+
+
+
 }
