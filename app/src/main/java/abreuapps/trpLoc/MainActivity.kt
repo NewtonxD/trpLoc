@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -54,6 +55,8 @@ class MainActivity : ComponentActivity() {
             Manifest.permission.INTERNET
         )
 
+        val apiKey=getString(R.string.api_key)
+
         ActivityCompat.requestPermissions(
             this,
             access,
@@ -64,7 +67,8 @@ class MainActivity : ComponentActivity() {
             trpLocTheme{
                 MainUI(
                     applicationContext,
-                    this
+                    this,
+                    apiKey
                 )
             }
 
@@ -76,12 +80,15 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainUI(
     applicationContext: Context,
-    activity: MainActivity
+    activity: MainActivity,
+    apiKey: String
     ){
 
-    val errorMessage = remember{ mutableStateOf("") }
+    val errorMessage = rememberSaveable{ mutableStateOf("") }
 
-    val placaVal = remember{ mutableStateOf("") }
+    val enServicio = rememberSaveable{ mutableStateOf(false) }
+
+    val placaVal = rememberSaveable{ mutableStateOf("") }
 
     val focusRequester = remember { FocusRequester() }
 
@@ -119,7 +126,7 @@ fun MainUI(
                                 Icon(Icons.Filled.Warning, errorMessage.value)
                             }
                         },
-
+                        enabled= ! enServicio.value,
                         modifier = Modifier
                             .align(Alignment.CenterVertically)
                             .focusRequester(focusRequester)
@@ -153,8 +160,10 @@ fun MainUI(
                                 validateVehicle(
                                     applicationContext,
                                     activity,
+                                    apiKey,
                                     placaVal,
-                                    errorMessage
+                                    errorMessage,
+                                    enServicio
                                 )
 
 
@@ -162,6 +171,7 @@ fun MainUI(
 
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Blue),
+                        enabled = ! enServicio.value,
                         modifier = Modifier.align(Alignment.CenterVertically)
 
                     ) {
@@ -190,15 +200,16 @@ fun MainUI(
                                 changeStatus(
                                     applicationContext,
                                     activity,
+                                    apiKey,
                                     placaVal,
-                                    "Estacionado"
+                                    "Estacionado",
+                                    enServicio
                                 )
                             }
 
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
                         modifier = Modifier.align(Alignment.CenterVertically)
-
                     ) {
                         Text(text = "Detener")
                     }
@@ -219,8 +230,10 @@ fun MainUI(
 private fun validateVehicle(
     context: Context,
     activity: MainActivity,
+    apiKey: String,
     placa:MutableState<String>,
-    errorMessage:MutableState<String>
+    errorMessage:MutableState<String>,
+    enServicio:MutableState<Boolean>
 ){
 
 
@@ -228,7 +241,7 @@ private fun validateVehicle(
 
     val api =
         Retrofit.Builder()
-            .baseUrl("http://192.168.100.76:8090")
+            .baseUrl(apiKey)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
 
@@ -255,6 +268,7 @@ private fun validateVehicle(
 
                 if (validation) {
                     errorMessage.value = ""
+                    enServicio.value   = true
                     Intent(
                         context,
                         LocationService::class.java
@@ -289,13 +303,15 @@ private fun validateVehicle(
 private fun changeStatus(
     context: Context,
     activity: MainActivity,
+    apiKey:String,
     placa: MutableState<String>,
-    estado:String
+    estado:String,
+    enServicio: MutableState<Boolean>
 ){
     val pwd = "*Dd123456"
     val api =
         Retrofit.Builder()
-            .baseUrl("http://192.168.100.76:8090")
+            .baseUrl(apiKey)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
 
@@ -309,6 +325,8 @@ private fun changeStatus(
     call!!.enqueue(object: Callback<ResultVerifyData?>{
         override fun onResponse(p0: Call<ResultVerifyData?>, p1: Response<ResultVerifyData?>) {
             if(p1.isSuccessful && p1.body()!=null){
+
+                enServicio.value   = false
 
                 if(p1.body()!!.isValid){
                     Intent(

@@ -1,16 +1,13 @@
 package abreuapps.trpLoc
 
 import abreuapps.trpLoc.api.TrpAPIService
-import abreuapps.trpLoc.api.model.RequestChangeStatusData
 import abreuapps.trpLoc.api.model.RequestLocationData
-import abreuapps.trpLoc.api.model.RequestVerifyData
 import abreuapps.trpLoc.api.model.ResultVerifyData
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.IBinder
-import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.CoroutineScope
@@ -116,7 +113,7 @@ class LocationService: Service() {
 
         val api =
             Retrofit.Builder()
-                .baseUrl("http://192.168.100.76:8090")
+                .baseUrl(getString(R.string.api_key))
                 .addConverterFactory(GsonConverterFactory.create())
                 .build()
 
