@@ -1,4 +1,4 @@
 <resources>
     <string name="app_name">Abreu Apps - Transport Loc</string>
-    <string name="api_key">http://192.168.100.55:8090</string>
+    <string name="api_key">http://192.168.0.108:8090</string>
 </resources>

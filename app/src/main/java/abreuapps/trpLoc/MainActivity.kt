@@ -3,6 +3,7 @@ package abreuapps.trpLoc
 import abreuapps.trpLoc.api.TrpAPIService
 import abreuapps.trpLoc.api.model.RequestChangeStatusData
 import abreuapps.trpLoc.api.model.RequestVerifyData
+import abreuapps.trpLoc.api.model.ResultRutasData
 import abreuapps.trpLoc.api.model.ResultVerifyData
 import abreuapps.trpLoc.ui.theme.AppTheme
 import android.Manifest
@@ -68,12 +69,6 @@ class MainActivity : ComponentActivity() {
             0
         )
 
-        val dummy_rutas= listOf(
-            "RUTA A",
-            "RUTA B",
-            "RUTA 2"
-        )
-
         setContent {
             AppTheme{
 
@@ -83,8 +78,7 @@ class MainActivity : ComponentActivity() {
                     MainUI(
                         applicationContext,
                         this,
-                        baseIP,
-                        dummy_rutas
+                        baseIP
                     )
                 }
             }
@@ -98,8 +92,7 @@ class MainActivity : ComponentActivity() {
 fun MainUI(
     applicationContext: Context,
     activity: MainActivity,
-    baseIP: String,
-    rutasList: List<String>
+    baseIP: String
     ){
 
     val errorMessage = rememberSaveable{ mutableStateOf("") }
@@ -112,7 +105,11 @@ fun MainUI(
 
     val focusManager = LocalFocusManager.current
 
-    val selectedOptText = rememberSaveable { mutableStateOf(rutasList[0]) }
+    val rutasList = rememberSaveable{mutableStateOf(listOf(""))}
+
+    val selectedOptText = rememberSaveable { mutableStateOf(rutasList.value[0]) }
+
+    getRutas(applicationContext,baseIP,rutasList)
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -169,7 +166,7 @@ fun MainUI(
                     DynamicSelectTextField(
                         "Ruta",
                         selectedOptText,
-                        rutasList,
+                        rutasList.value,
                         enServicio,
                         modifier = Modifier
                             .align(Alignment.CenterVertically)
@@ -206,6 +203,7 @@ fun MainUI(
                                     baseIP,
                                     placaVal,
                                     errorMessage,
+                                    selectedOptText,
                                     enServicio
                                 )
 
@@ -269,12 +267,92 @@ fun MainUI(
 
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DynamicSelectTextField(
+    label: String,
+    selectedValue: MutableState<String>,
+    options: List<String>,
+    enServicio: MutableState<Boolean>,
+    modifier: Modifier = Modifier
+) {
+    val expanded = remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded.value,
+        onExpandedChange = { expanded.value = !expanded.value },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            readOnly = true,
+            enabled = ! enServicio.value,
+            value = selectedValue.value,
+            onValueChange = {},
+            label = { Text(text = label) },
+            trailingIcon = {
+                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded.value)
+            },
+            modifier = Modifier
+                .menuAnchor()
+        )
+
+        ExposedDropdownMenu(expanded = expanded.value, onDismissRequest = { expanded.value = false },) {
+            options.forEach { option: String ->
+                DropdownMenuItem(
+                    text = { Text(text = option, color =  if(selectedValue.value==option) Color.White else Color.LightGray  ) },
+                    onClick = {
+                        expanded.value = false
+                        selectedValue.value=option
+                    }
+                )
+            }
+        }
+    }
+}
+
+
+private fun getRutas(
+    context: Context,
+    baseIP: String,
+    rutas:MutableState<List<String>>
+){
+    val pwd = "*Dd123456"
+
+    val api =
+        Retrofit.Builder()
+            .baseUrl(baseIP)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+
+    val retroAPI=api
+        .create(TrpAPIService::class.java)
+
+    val call: Call<ResultRutasData?>? = retroAPI.getRutas()
+
+    call!!.enqueue(object: Callback<ResultRutasData?>{
+        override fun onResponse(p0: Call<ResultRutasData?>, p1: Response<ResultRutasData?>) {
+            if(p1.isSuccessful && p1.body()!=null){
+                rutas.value=p1.body()!!.rutas
+            }
+        }
+
+        override fun onFailure(p0: Call<ResultRutasData?>, p1: Throwable) {
+            Toast.makeText(
+                context,
+                "No pudimos contactar al servidor!",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    })
+}
+
 private fun validateVehicle(
     context: Context,
     activity: MainActivity,
     baseIP: String,
     placa:MutableState<String>,
     errorMessage:MutableState<String>,
+    rutaSelected:MutableState<String>,
     enServicio:MutableState<Boolean>
 ){
 
@@ -290,7 +368,7 @@ private fun validateVehicle(
     val retroAPI=api
         .create(TrpAPIService::class.java)
 
-    val data = RequestVerifyData(placa.value,pwd)
+    val data = RequestVerifyData(placa.value,rutaSelected.value,pwd)
 
     val call: Call<ResultVerifyData?>? = retroAPI.validateInfo(data)
 
@@ -339,51 +417,6 @@ private fun validateVehicle(
         }
     })
 }
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun DynamicSelectTextField(
-    label: String,
-    selectedValue: MutableState<String>,
-    options: List<String>,
-    enServicio: MutableState<Boolean>,
-    modifier: Modifier = Modifier
-) {
-    val expanded = remember { mutableStateOf(false) }
-
-    ExposedDropdownMenuBox(
-        expanded = expanded.value,
-        onExpandedChange = { expanded.value = !expanded.value },
-        modifier = modifier
-    ) {
-        OutlinedTextField(
-            readOnly = true,
-            enabled = ! enServicio.value,
-            value = selectedValue.value,
-            onValueChange = {},
-            label = { Text(text = label) },
-            trailingIcon = {
-                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded.value)
-            },
-            modifier = Modifier
-                .menuAnchor()
-        )
-
-        ExposedDropdownMenu(expanded = expanded.value, onDismissRequest = { expanded.value = false },) {
-            options.forEach { option: String ->
-                DropdownMenuItem(
-                    text = { Text(text = option, color =  if(selectedValue.value==option) Color.White else Color.LightGray  ) },
-                    onClick = {
-                        expanded.value = false
-                        selectedValue.value=option
-                    }
-                )
-            }
-        }
-    }
-}
-
-
 
 private fun changeStatus(
     context: Context,
