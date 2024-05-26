@@ -4,7 +4,7 @@ import abreuapps.trpLoc.api.TrpAPIService
 import abreuapps.trpLoc.api.model.RequestChangeStatusData
 import abreuapps.trpLoc.api.model.RequestVerifyData
 import abreuapps.trpLoc.api.model.ResultVerifyData
-import abreuapps.trpLoc.ui.theme.trpLocTheme
+import abreuapps.trpLoc.ui.theme.AppTheme
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -22,8 +22,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
@@ -55,7 +60,7 @@ class MainActivity : ComponentActivity() {
             Manifest.permission.INTERNET
         )
 
-        val apiKey=getString(R.string.api_key)
+        val baseIP=getString(R.string.api_key)
 
         ActivityCompat.requestPermissions(
             this,
@@ -63,13 +68,25 @@ class MainActivity : ComponentActivity() {
             0
         )
 
+        val dummy_rutas= listOf(
+            "RUTA A",
+            "RUTA B",
+            "RUTA 2"
+        )
+
         setContent {
-            trpLocTheme{
-                MainUI(
-                    applicationContext,
-                    this,
-                    apiKey
-                )
+            AppTheme{
+
+                Surface(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    MainUI(
+                        applicationContext,
+                        this,
+                        baseIP,
+                        dummy_rutas
+                    )
+                }
             }
 
         }
@@ -81,7 +98,8 @@ class MainActivity : ComponentActivity() {
 fun MainUI(
     applicationContext: Context,
     activity: MainActivity,
-    apiKey: String
+    baseIP: String,
+    rutasList: List<String>
     ){
 
     val errorMessage = rememberSaveable{ mutableStateOf("") }
@@ -93,6 +111,8 @@ fun MainUI(
     val focusRequester = remember { FocusRequester() }
 
     val focusManager = LocalFocusManager.current
+
+    val selectedOptText = rememberSaveable { mutableStateOf(rutasList[0]) }
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -114,7 +134,7 @@ fun MainUI(
                 ) {
                     OutlinedTextField(
                         value = placaVal.value,
-                        label = { Text("Placa") },
+                        label = { Text("Placa")},
                         singleLine = true,
                         onValueChange = {
                             placaVal.value=it
@@ -130,6 +150,29 @@ fun MainUI(
                         modifier = Modifier
                             .align(Alignment.CenterVertically)
                             .focusRequester(focusRequester)
+
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(75.dp)
+            ) {
+                //start
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                ) {
+
+                    DynamicSelectTextField(
+                        "Ruta",
+                        selectedOptText,
+                        rutasList,
+                        enServicio,
+                        modifier = Modifier
+                            .align(Alignment.CenterVertically)
                     )
                 }
             }
@@ -160,7 +203,7 @@ fun MainUI(
                                 validateVehicle(
                                     applicationContext,
                                     activity,
-                                    apiKey,
+                                    baseIP,
                                     placaVal,
                                     errorMessage,
                                     enServicio
@@ -175,7 +218,7 @@ fun MainUI(
                         modifier = Modifier.align(Alignment.CenterVertically)
 
                     ) {
-                        Text(text = "Iniciar")
+                        Text(text = "Iniciar", color = Color.White)
                     }
 
                 }
@@ -200,7 +243,7 @@ fun MainUI(
                                 changeStatus(
                                     applicationContext,
                                     activity,
-                                    apiKey,
+                                    baseIP,
                                     placaVal,
                                     "Estacionado",
                                     enServicio
@@ -211,13 +254,12 @@ fun MainUI(
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
                         modifier = Modifier.align(Alignment.CenterVertically)
                     ) {
-                        Text(text = "Detener")
+                        Text(text = "Detener", color = Color.White)
                     }
 
                 }
 
             }
-
 
         }
 
@@ -230,7 +272,7 @@ fun MainUI(
 private fun validateVehicle(
     context: Context,
     activity: MainActivity,
-    apiKey: String,
+    baseIP: String,
     placa:MutableState<String>,
     errorMessage:MutableState<String>,
     enServicio:MutableState<Boolean>
@@ -241,7 +283,7 @@ private fun validateVehicle(
 
     val api =
         Retrofit.Builder()
-            .baseUrl(apiKey)
+            .baseUrl(baseIP)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
 
@@ -298,12 +340,55 @@ private fun validateVehicle(
     })
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DynamicSelectTextField(
+    label: String,
+    selectedValue: MutableState<String>,
+    options: List<String>,
+    enServicio: MutableState<Boolean>,
+    modifier: Modifier = Modifier
+) {
+    val expanded = remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded.value,
+        onExpandedChange = { expanded.value = !expanded.value },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            readOnly = true,
+            enabled = ! enServicio.value,
+            value = selectedValue.value,
+            onValueChange = {},
+            label = { Text(text = label) },
+            trailingIcon = {
+                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded.value)
+            },
+            modifier = Modifier
+                .menuAnchor()
+        )
+
+        ExposedDropdownMenu(expanded = expanded.value, onDismissRequest = { expanded.value = false },) {
+            options.forEach { option: String ->
+                DropdownMenuItem(
+                    text = { Text(text = option, color =  if(selectedValue.value==option) Color.White else Color.LightGray  ) },
+                    onClick = {
+                        expanded.value = false
+                        selectedValue.value=option
+                    }
+                )
+            }
+        }
+    }
+}
+
 
 
 private fun changeStatus(
     context: Context,
     activity: MainActivity,
-    apiKey:String,
+    baseIP:String,
     placa: MutableState<String>,
     estado:String,
     enServicio: MutableState<Boolean>
@@ -311,7 +396,7 @@ private fun changeStatus(
     val pwd = "*Dd123456"
     val api =
         Retrofit.Builder()
-            .baseUrl(apiKey)
+            .baseUrl(baseIP)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
 
@@ -333,12 +418,8 @@ private fun changeStatus(
                         context,
                         LocationService::class.java
                     ).apply {
-
                         action = LocationService.ACTION_STOP
                         activity.stopService(this)
-
-
-
                     }
                 }
 
