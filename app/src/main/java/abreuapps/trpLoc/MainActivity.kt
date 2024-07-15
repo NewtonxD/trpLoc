@@ -109,7 +109,10 @@ fun MainUI(
 
     val selectedOptText = rememberSaveable { mutableStateOf(rutasList.value[0]) }
 
-    getRutas(applicationContext,baseIP,rutasList)
+    val unicaLlamadaListaRutas = rememberSaveable { mutableStateOf(true) }
+
+    if(unicaLlamadaListaRutas.value)
+        getRutas(applicationContext,baseIP,rutasList,unicaLlamadaListaRutas)
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -314,9 +317,9 @@ fun DynamicSelectTextField(
 private fun getRutas(
     context: Context,
     baseIP: String,
-    rutas:MutableState<List<String>>
+    rutas:MutableState<List<String>>,
+    unicaLlamada:MutableState<Boolean>
 ){
-    val pwd = "*Dd123456"
 
     val api =
         Retrofit.Builder()
@@ -333,10 +336,12 @@ private fun getRutas(
         override fun onResponse(p0: Call<ResultRutasData?>, p1: Response<ResultRutasData?>) {
             if(p1.isSuccessful && p1.body()!=null){
                 rutas.value=p1.body()!!.rutas
+                unicaLlamada.value=false
             }
         }
 
         override fun onFailure(p0: Call<ResultRutasData?>, p1: Throwable) {
+            p1.printStackTrace()
             Toast.makeText(
                 context,
                 "No pudimos contactar al servidor!",
@@ -409,6 +414,7 @@ private fun validateVehicle(
         }
 
         override fun onFailure(p0: Call<ResultVerifyData?>, p1: Throwable) {
+            p1.printStackTrace()
             Toast.makeText(
                 context,
                 "No pudimos contactar al servidor!",
@@ -469,6 +475,7 @@ private fun changeStatus(
         }
 
         override fun onFailure(p0: Call<ResultVerifyData?>, p1: Throwable) {
+            p1.printStackTrace()
             Toast.makeText(
                 context,
                 "No pudimos contactar al servidor!",

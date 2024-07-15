@@ -22,6 +22,7 @@ import retrofit2.Callback
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.Calendar
 
 class LocationService: Service() {
 
@@ -66,8 +67,14 @@ class LocationService: Service() {
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
+        var currentSecond: Int = Calendar.getInstance().get(Calendar.SECOND)
+        while ( currentSecond%5!=0 ) {
+            Thread.sleep(1000)
+            currentSecond = Calendar.getInstance().get(Calendar.SECOND)
+        }
+
         locationClient
-            .getLocationUpdates(3000L)
+            .getLocationUpdates(5000L)
             .catch { e->e.printStackTrace() }
             .onEach { location ->
                 val lat = location.latitude.toString().takeLast(3)
