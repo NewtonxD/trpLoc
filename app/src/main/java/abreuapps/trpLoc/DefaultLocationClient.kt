@@ -32,9 +32,11 @@ class DefaultLocationClient(
             if( !isGpsEnabled && !isNetworkEnabled )
                 throw LocationClient.LocationException("GPS está inhabilitado!")
 
-            val request = LocationRequest.create()
-                .setInterval(interval)
-                .setFastestInterval(interval)
+            val request = LocationRequest.Builder(interval)
+                .setMinUpdateDistanceMeters(0f)
+                .setIntervalMillis(interval)
+                .setWaitForAccurateLocation(true)
+                .build()
 
             val locationCallback = object : LocationCallback(){
                 override fun onLocationResult(p0: LocationResult) {

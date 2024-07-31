@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
@@ -52,16 +53,16 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val access:Array<String> = arrayOf(
             Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.INTERNET
+            Manifest.permission.INTERNET,
         )
 
-        val baseIP=getString(R.string.api_key)
 
         ActivityCompat.requestPermissions(
             this,
@@ -78,13 +79,14 @@ class MainActivity : ComponentActivity() {
                     MainUI(
                         applicationContext,
                         this,
-                        baseIP
+                        getString(R.string.api_key)
                     )
                 }
             }
 
         }
     }
+
 }
 
 
@@ -245,17 +247,49 @@ fun MainUI(
                                     applicationContext,
                                     activity,
                                     baseIP,
-                                    placaVal,
+                                    placaVal.value,
                                     "Estacionado",
                                     enServicio
                                 )
                             }
 
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
-                        modifier = Modifier.align(Alignment.CenterVertically)
+                        //enabled = enServicio.value,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Yellow),
+                        modifier = Modifier.align(Alignment.CenterVertically).padding(16.dp)
                     ) {
-                        Text(text = "Detener", color = Color.White)
+                        Text(text = "Detener", color = Color.Black)
+                    }
+
+                    Button(
+                        onClick = {
+                            focusManager.clearFocus()
+
+                            if (placaVal.value.trim().isEmpty()) {
+                                errorMessage.value = "Placa requerida para proceder."
+                                Toast.makeText(
+                                    applicationContext,
+                                    "Placa requerida para proceder.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+
+                            } else {
+                                changeStatus(
+                                    applicationContext,
+                                    activity,
+                                    baseIP,
+                                    placaVal.value,
+                                    "Averiado",
+                                    enServicio
+                                )
+                            }
+
+                        },
+                        enabled = enServicio.value,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                        modifier = Modifier.align(Alignment.CenterVertically).padding(16.dp)
+                    ) {
+                        Text(text = "Averia", color = Color.White)
                     }
 
                 }
@@ -402,7 +436,7 @@ private fun validateVehicle(
                         removeExtra("placa")
                         putExtra("placa", placa.value)
                         putExtra("token", p1.body()!!.token)
-
+                        //activity.placaVal=placa.value
                         action = LocationService.ACTION_START
                         activity.startService(this)
                     }
@@ -428,9 +462,9 @@ private fun changeStatus(
     context: Context,
     activity: MainActivity,
     baseIP:String,
-    placa: MutableState<String>,
+    placa: String,
     estado:String,
-    enServicio: MutableState<Boolean>
+    enServicio: MutableState<Boolean>?
 ){
     val pwd = "*Dd123456"
     val api =
@@ -442,7 +476,7 @@ private fun changeStatus(
     val retroAPI=api
         .create(TrpAPIService::class.java)
 
-    val data = RequestChangeStatusData(placa.value,estado,pwd)
+    val data = RequestChangeStatusData(placa,estado,pwd)
 
     val call = retroAPI.changeTransportStatus(data)
 
@@ -450,7 +484,7 @@ private fun changeStatus(
         override fun onResponse(p0: Call<ResultVerifyData?>, p1: Response<ResultVerifyData?>) {
             if(p1.isSuccessful && p1.body()!=null){
 
-                enServicio.value   = false
+                enServicio?.let { enServicio.value = false }
 
                 if(p1.body()!!.isValid){
                     Intent(

@@ -3,11 +3,14 @@ package abreuapps.trpLoc
 import abreuapps.trpLoc.api.TrpAPIService
 import abreuapps.trpLoc.api.model.RequestLocationData
 import abreuapps.trpLoc.api.model.ResultVerifyData
+import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import androidx.core.app.NotificationCompat
 import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.CoroutineScope
@@ -34,6 +37,8 @@ class LocationService: Service() {
 
     private lateinit var locationClient: LocationClient
 
+    private var intentos=0;
+
     override fun onBind(intent: Intent?): IBinder? {
         return null
     }
@@ -56,13 +61,12 @@ class LocationService: Service() {
     }
 
     private fun start(intent: Intent?){
-
         placa = intent?.getStringExtra("placa")
         token = intent?.getStringExtra("token")
         val notification = NotificationCompat.Builder(this,"location")
             .setContentTitle("Localizando "+placa!!)
             .setContentText("Loc: null")
-            .setSmallIcon(R.drawable.ic_launcher_background)
+            .setSmallIcon(R.drawable.omsalogo)
             .setOngoing(true)
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -75,7 +79,24 @@ class LocationService: Service() {
 
         locationClient
             .getLocationUpdates(5000L)
-            .catch { e->e.printStackTrace() }
+            .catch { e->e.printStackTrace()
+                intentos++
+                if(intentos>=12){
+
+                    val notificationManager1 = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+                    val notification1=NotificationCompat.Builder(applicationContext,"location error")
+                        .setContentTitle("Servicio detenido automáticamente.")
+                        .setContentText("Revise el Internet y luego reinicie la aplicación.")
+                        .setSmallIcon(R.drawable.omsalogo)
+
+                    notificationManager1.notify(2,notification1.build())
+
+                    stop()
+
+                }
+
+            }
             .onEach { location ->
                 val lat = location.latitude.toString().takeLast(3)
                 val lon = location.longitude.toString().takeLast(3)
@@ -96,14 +117,17 @@ class LocationService: Service() {
 
     }
 
+    @Suppress("DEPRECATION")
     private fun stop(){
-        stopForeground(STOP_FOREGROUND_DETACH)
-        stopSelf()
+        Handler(Looper.getMainLooper()).post {
+            stopForeground(true)
+            stopSelf()
+        }
     }
 
     override fun onDestroy() {
-        super.onDestroy()
         serviceScope.cancel()
+        super.onDestroy()
     }
 
     companion object{
@@ -117,27 +141,47 @@ class LocationService: Service() {
         lon: String,
         token:String?
     ){
+        if(intentos>=12){
 
-        val api =
-            Retrofit.Builder()
-                .baseUrl(getString(R.string.api_key))
-                .addConverterFactory(GsonConverterFactory.create())
-                .build()
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        val retroAPI=api
-            .create(TrpAPIService::class.java)
+            val notification=NotificationCompat.Builder(this,"location error")
+                .setContentTitle("Servicio detenido automáticamente.")
+                .setContentText("Revise el Internet y luego reinicie la aplicación.")
+                .setSmallIcon(R.drawable.omsalogo)
 
-        val data = RequestLocationData(placa!!,lat,lon,token!!)
+            notificationManager.notify(2,notification.build())
 
-        val call = retroAPI.sendTransportInfo(data)
+            stop()
 
-        call!!.enqueue(object: Callback<ResultVerifyData?>{
-            override fun onResponse(p0: Call<ResultVerifyData?>, p1: Response<ResultVerifyData?>) {
-            }
+        }else{
+            val api =
+                Retrofit.Builder()
+                    .baseUrl(getString(R.string.api_key))
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .build()
 
-            override fun onFailure(p0: Call<ResultVerifyData?>, p1: Throwable) {
-            }
-        })
+            val retroAPI=api
+                .create(TrpAPIService::class.java)
+
+            val data = RequestLocationData(placa!!,lat,lon,token!!)
+
+            val call = retroAPI.sendTransportInfo(data)
+
+            call!!.enqueue(object: Callback<ResultVerifyData?>{
+                override fun onResponse(p0: Call<ResultVerifyData?>, p1: Response<ResultVerifyData?>) {
+                    if(p1.body()!!.isValid){
+                        intentos=0
+                    }else{
+                        intentos++
+                    }
+                }
+
+                override fun onFailure(p0: Call<ResultVerifyData?>, p1: Throwable) {
+                    intentos++
+                }
+            })
+        }
     }
 
 
